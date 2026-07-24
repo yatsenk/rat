@@ -1,6 +1,8 @@
 use std::io::{self, prelude::*};
 use std::net::{TcpListener, TcpStream};
 
+mod tui;
+
 fn handle_connection(mut stream: TcpStream) {
     println!("[*] client is connected");
     let mut buf = [0; 512];
@@ -40,6 +42,9 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 fn main() {
+    tui::main().unwrap();
+
+    /* 
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     println!("[*] listener is created, waiting for client ...");
 
@@ -51,4 +56,5 @@ fn main() {
             Err(_e) => { println!("[ERROR] could not connect to server") }
         }
     }
+    */
 }
