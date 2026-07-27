@@ -4,7 +4,7 @@ use std::os::windows::process::CommandExt;
 use std::net::TcpStream;
 use rdev::{listen, Event};
 
-const TASK: u8 = 1; 
+const TASK: u8 = 0; 
 
 fn handle_command(mut stream: TcpStream) {
     match TASK {
