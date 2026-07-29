@@ -37,7 +37,7 @@ impl Core {
         true
     }
 
-    pub fn handle_instructions(&mut self, input: String) -> Result<(), std::io::Error> {
+    pub fn apply_instructions(&mut self, input: String) -> Result<(), std::io::Error> {
         self.stream.write_all(input.as_bytes())?;
         self.stream.flush()?;
         Ok(())
@@ -110,7 +110,7 @@ impl App {
     }
 
     fn submit_instructions(&mut self) {
-        self.core.handle_instructions(self.input.clone()).unwrap();
+        self.core.apply_instructions(self.input.clone()).unwrap();
         self.instructions.push(self.input.clone());
         self.messages.push(format!("handled instruction(-s): {}", self.input.clone()));
         self.input.clear();
