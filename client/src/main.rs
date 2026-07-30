@@ -2,7 +2,7 @@ use std::io::prelude::*;
 use std::process::Command;
 use std::os::windows::process::CommandExt;
 use std::net::TcpStream;
-use rdev::{listen, Event};
+use rdev::Event;
 
 fn main() {}
 
