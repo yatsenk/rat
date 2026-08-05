@@ -82,9 +82,7 @@ impl App {
     }
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
-        if self.core.is_connected() {
-            self.messages.push(format!("client is connected from {}", self.core.addr));
-        }
+        self.messages.push(format!("client is connected from {}", self.core.addr));
 
         loop {
             terminal.draw(|frame| self.render(frame))?;
