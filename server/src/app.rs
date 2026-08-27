@@ -1,9 +1,9 @@
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::{Constraint, Layout};
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Paragraph, List, ListItem};
+use ratatui::widgets::{Block, Paragraph, List, ListItem, Tabs};
 use ratatui::{DefaultTerminal, Frame};
 
 use super::Core;
@@ -13,8 +13,32 @@ pub enum AppEvent {
     Terminal(KeyEvent),
 }
 
-pub struct App {
+pub struct TabsState<'a> {
+    pub titles: Vec<&'a str>,
+    pub index: usize,
+}
+
+impl<'a> TabsState<'a> {
+    pub const fn new(titles: Vec<&'a str>) -> Self {
+        Self { titles, index: 0 }
+    }
+    pub fn next(&mut self) {
+        self.index = (self.index + 1) % self.titles.len();
+    }
+
+    pub fn previous(&mut self) {
+        if self.index > 0 {
+            self.index -= 1;
+        } else {
+            self.index = self.titles.len() - 1;
+        }
+    }
+}
+
+pub struct App<'a> {
+    title: &'a str,
     input: String,
+    tabs: TabsState<'a>,
     character_index: usize,
     messages: Vec<String>,
     instructions: Vec<String>,
@@ -22,16 +46,27 @@ pub struct App {
     core: Core,
 }
 
-impl App {
-    pub fn new() -> Self {
+impl<'a> App<'a> {
+    pub fn new(title: &'a str) -> Self {
         Self {
+            title,
             input: String::new(),
+            tabs: TabsState::new(vec!["Client", "Log", "Impl"]),
             messages: Vec::new(),
             instructions: Vec::new(),
             character_index: 0,
             logged_keys: String::new(),
             core: Core::new(),
         }
+    }
+
+
+    fn on_right(&mut self) {
+        self.tabs.next();
+    }
+
+    fn on_left(&mut self) {
+        self.tabs.previous();
     }
 
     fn move_cursor_left(&mut self) {
@@ -103,6 +138,8 @@ impl App {
                         KeyCode::Backspace => self.delete_char(),
                         KeyCode::Left => self.move_cursor_left(),
                         KeyCode::Right => self.move_cursor_right(),
+                        KeyCode::Tab => self.on_right(),
+                        KeyCode::BackTab => self.on_left(),
                         KeyCode::Esc => break,
                         _ => {}
                     }
@@ -118,25 +155,53 @@ impl App {
     }
 
     fn render(&mut self, frame: &mut Frame) {
-        let main_layout = Layout::vertical([
-            Constraint::Percentage(75),
-            Constraint::Percentage(25),
-        ]).split(frame.area());
+        let chunks = Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(frame.area());
+        let tabs = self
+            .tabs
+            .titles
+            .iter()
+            .map(|t| Line::from(Span::styled(*t, Style::default().fg(Color::White))))
+            .collect::<Tabs>()
+            .block(Block::bordered().title(self.title))
+            .highlight_style(Style::default().fg(Color::Blue))
+            .select(self.tabs.index);
+        frame.render_widget(tabs, chunks[0]);
+        match self.tabs.index {
+            0 => self.draw_first_tab(frame, chunks[1]),
+            1 => self.draw_second_tab(frame, chunks[1]),
+            2 => self.draw_third_tab(chunks[1]),
+            _ => {}
+        };
+    }
 
-        let sub_layout = Layout::horizontal([
-            Constraint::Percentage(50), 
-            Constraint::Percentage(50),
-        ]).split(main_layout[1]);
-
-        let layout = Layout::vertical([
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ]).split(sub_layout[0]);
+    fn draw_first_tab(&mut self, frame: &mut Frame, area: Rect) {
+        let chunks = Layout::vertical([
+            Constraint::Fill(16), 
+            Constraint::Fill(2),  
+            Constraint::Fill(2), 
+        ]).split(area);
 
         let user_screen = Paragraph::new("Here should be user screen")
-            .style(Style::default().fg(Color::Yellow))
+            .style(Style::default().fg(Color::White))
             .block(Block::bordered());
-        frame.render_widget(user_screen, main_layout[0]);
+        frame.render_widget(user_screen, chunks[0]);
+
+        let instructions = Paragraph::new(format!(">> {}", self.input.as_str()))
+            .style(Style::default().fg(Color::White))
+            .block(Block::bordered());
+        frame.render_widget(instructions, chunks[2]);
+
+        let keylogger = Paragraph::new(format!("keylogger: {}", self.logged_keys))
+            .style(Style::default().fg(Color::White))
+            .block(Block::bordered());
+        frame.render_widget(keylogger, chunks[1]);
+    }
+
+    fn draw_second_tab(&mut self, frame: &mut Frame, area: Rect) {
+        let chunks = Layout::horizontal([
+            Constraint::Fill(1),
+        ])
+        .split(area);
 
         let messages: Vec<ListItem> = self
             .messages
@@ -147,16 +212,10 @@ impl App {
             })
             .collect();
         let messages = List::new(messages).block(Block::bordered());
-        frame.render_widget(messages, sub_layout[1]);
+        frame.render_widget(messages, chunks[0]);
+    }
 
-        let instructions = Paragraph::new(format!(">> {}", self.input.as_str()))
-            .style(Style::default().fg(Color::White))
-            .block(Block::bordered());
-        frame.render_widget(instructions, layout[1]);
+    fn draw_third_tab(&mut self, _area: Rect) {
 
-        let keylogger = Paragraph::new(format!("keylogger: {}", self.logged_keys))
-            .style(Style::default().fg(Color::White))
-            .block(Block::bordered());
-        frame.render_widget(keylogger, layout[0]);
     }
 }
