@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Paragraph, List, ListItem, Tabs};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Tabs};
 use ratatui::{DefaultTerminal, Frame};
 
 use super::Core;
@@ -36,7 +36,7 @@ impl<'a> TabsState<'a> {
 }
 
 pub struct App<'a> {
-    title: &'a str,
+    _title: &'a str,
     input: String,
     tabs: TabsState<'a>,
     character_index: usize,
@@ -47,9 +47,9 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    pub fn new(title: &'a str) -> Self {
+    pub fn new(_title: &'a str) -> Self {
         Self {
-            title,
+            _title,
             input: String::new(),
             tabs: TabsState::new(vec!["Client", "Log", "Impl"]),
             messages: Vec::new(),
@@ -125,7 +125,20 @@ impl<'a> App<'a> {
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         self.core.start_listeners();
-        self.messages.push(format!("client is connected from {}", self.core.addr));
+
+        let addr = {
+            let addr_guard = self.core.addr.lock().unwrap();
+            *addr_guard
+        };
+
+        match addr {
+            Some(addr) => {
+                self.messages.push(format!("[*] client is connected from {}", addr));
+            },
+            None => {
+                self.messages.push(format!("[*] waiting for client connection ..."));
+            }
+        }
 
         terminal.draw(|frame| self.render(frame))?;
 
@@ -162,14 +175,15 @@ impl<'a> App<'a> {
             .iter()
             .map(|t| Line::from(Span::styled(*t, Style::default().fg(Color::White))))
             .collect::<Tabs>()
-            .block(Block::bordered().title(self.title))
-            .highlight_style(Style::default().fg(Color::Blue))
+            .block(Block::new().borders(Borders::ALL))
+            .highlight_style(Style::default().fg(Color::LightBlue))
             .select(self.tabs.index);
         frame.render_widget(tabs, chunks[0]);
+
         match self.tabs.index {
             0 => self.draw_first_tab(frame, chunks[1]),
             1 => self.draw_second_tab(frame, chunks[1]),
-            2 => self.draw_third_tab(chunks[1]),
+            2 => self.draw_third_tab(frame, chunks[1]),
             _ => {}
         };
     }
@@ -177,19 +191,13 @@ impl<'a> App<'a> {
     fn draw_first_tab(&mut self, frame: &mut Frame, area: Rect) {
         let chunks = Layout::vertical([
             Constraint::Fill(16), 
-            Constraint::Fill(2),  
-            Constraint::Fill(2), 
+            Constraint::Fill(4),  
         ]).split(area);
 
-        let user_screen = Paragraph::new("Here should be user screen")
+        let user_screen = Paragraph::new("[<>] here should be user screen")
             .style(Style::default().fg(Color::White))
             .block(Block::bordered());
         frame.render_widget(user_screen, chunks[0]);
-
-        let instructions = Paragraph::new(format!(">> {}", self.input.as_str()))
-            .style(Style::default().fg(Color::White))
-            .block(Block::bordered());
-        frame.render_widget(instructions, chunks[2]);
 
         let keylogger = Paragraph::new(format!("keylogger: {}", self.logged_keys))
             .style(Style::default().fg(Color::White))
@@ -215,7 +223,17 @@ impl<'a> App<'a> {
         frame.render_widget(messages, chunks[0]);
     }
 
-    fn draw_third_tab(&mut self, _area: Rect) {
-
+    fn draw_third_tab(&mut self, frame: &mut Frame, area: Rect) {
+        let chunks = Layout::vertical([
+            Constraint::Fill(4),  
+            Constraint::Fill(4),  
+            Constraint::Fill(4),  
+            Constraint::Fill(4),  
+        ]).split(area);
+        
+        let instructions = Paragraph::new(format!(">> {}", self.input.as_str()))
+            .style(Style::default().fg(Color::White))
+            .block(Block::bordered());
+        frame.render_widget(instructions, chunks[0]);
     }
 }
