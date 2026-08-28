@@ -42,4 +42,4 @@ cargo run --bin client
 ```
 ```bash
 git clone [https://github.com/yatsenk/rat.git](https://github.com/yatsenk/rat.git)
-cd rat
+cd 
