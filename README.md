@@ -25,7 +25,7 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone [https://github.com/yatsenk/rat.git](https://github.com/yatsenk/rat.git)
+git clone https://github.com/yatsenk/rat.git
 cd rat
 ```
 ### 2. Сборка всего workspace
@@ -40,6 +40,3 @@ cargo run --bin server
 ```bash
 cargo run --bin client
 ```
-```bash
-git clone [https://github.com/yatsenk/rat.git](https://github.com/yatsenk/rat.git)
-cd 
