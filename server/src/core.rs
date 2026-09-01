@@ -2,21 +2,21 @@ use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::thread;
+use std::sync::{Arc, Mutex};
 
 use crate::app::AppEvent;
 use crossterm::event::{self};
 
 #[derive(Debug)]
 pub struct Core {
-    pub stream: Option<TcpStream>,
+    pub stream: Arc<Mutex<Option<TcpStream>>>,
     pub sender: mpsc::Sender<AppEvent>,
     pub receiver: mpsc::Receiver<AppEvent>,
 }
 
 impl Core {
     pub fn new() -> Self {
-        let stream = None;
-
+        let stream = Arc::new(Mutex::new(None));
         let (sender, receiver) = mpsc::channel::<AppEvent>();
         
         Core {
@@ -24,15 +24,6 @@ impl Core {
             sender,
             receiver,
         }
-    }
-
-    pub fn apply_instructions(&mut self, input: String) -> Result<(), std::io::Error> {
-        if let Some(ref mut stream) = self.stream {
-            stream.write_all(input.as_bytes())?;
-            stream.flush()?;
-        }
-        
-        Ok(())
     }
 
     pub fn start_tcp_listener(&self) {
@@ -51,10 +42,33 @@ impl Core {
         });
     }
 
-    pub fn start_client_reader(&mut self, mut stream: TcpStream) {
+    pub fn apply_instructions(&mut self, input: String) -> Result<(), std::io::Error> {
+        let stream = {
+            let mut stream_guard = self.stream.lock().unwrap();
+            stream_guard.take()
+        };
+
+        if let Some(mut stream) = stream {
+            stream.write_all(input.as_bytes())?;
+            stream.flush()?;
+        }
+        
+        Ok(())
+    }
+
+    pub fn start_client_reader(&mut self) {
+        let stream = {  
+            let mut stream_guard = self.stream.lock().unwrap();
+            stream_guard.take()
+        };
+        
         let sender = self.sender.clone();
         thread::spawn(move || {
             let mut buffer = [0; 512];
+
+            let Some(mut stream) = stream else {
+                return;
+            };
 
             while let Ok(bytes) = stream.read(&mut buffer[..]) { 
                 if bytes == 0 { break; }

