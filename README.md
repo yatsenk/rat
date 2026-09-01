@@ -1,42 +1,42 @@
-# 🛠️ Remote Administration Tool (RAT)
+# Remote Administration Tool (RAT)
 
-Модульный инструмент для дистанционного администрирования систем, написанный на **Rust**. Проект реализован в виде Cargo Workspace и включает в себя клиентский модуль, управляющий сервер с консольным интерфейсом (TUI) и сетевой протокол взаимодействия.
+A modular Remote Administration Tool (RAT) written in **Rust**. Built as a Cargo Workspace, the project includes a client agent, a control server with a Terminal User Interface (TUI), and a network communication protocol.
 
-> **Disclaimer (Отказ от ответственности):** 
-> Этот проект создан исключительно в учебных, демонстрационных и исследовательских целях. Использование данного ПО на устройствах без предварительного согласия их владельца является нелегальным.
-
----
-
-## 🚀 Особенности
-
-- **Архитектура Cargo Workspace:** Четкое разделение на клиентскую (`client`), серверную (`server`) часть и общие компоненты.
-- **Интерактивный TUI:** Удобный серверный интерфейс терминала на базе `ratatui` и `crossterm`.
-- **Сетевое взаимодействие:** Передача команд и данных через `std::net::TcpListener` / `TcpStream`.
-- **Функциональность клиента:**
-  - Удаленное выполнение команд (Command Execution).
-  - Перехват событий ввода с использованием библиотеки `rdev`.
-  - Отправка статуса и системной информации в режиме реального времени.
+> **Disclaimer:** 
+> This project is created strictly for educational, demonstration, and research purposes. Using this software on devices without explicit prior authorization from the owner is illegal.
 
 ---
 
-## 💻 Требования и сборка
+## 🚀 Features
 
-Для сборки и запуска требуется **Rust** (издание 2021 или новее) и менеджер пакетов `cargo`.
+- **Cargo Workspace Architecture:** Clean separation into client (`client`), server (`server`), and shared components.
+- **Interactive TUI:** Feature-rich terminal interface for the server built on `ratatui` and `crossterm`.
+- **Network Protocol:** Command and data transmission powered by `std::net::TcpListener` / `TcpStream`.
+- **Client Capabilities:**
+  - Remote command execution.
+  - Input event capture using the `rdev` library.
+  - Real-time system information and status streaming.
 
-### 1. Клонирование репозитория
+---
+
+## 💻 Prerequisites & Building
+
+Building and running this project requires **Rust** (2021 edition or newer) and `cargo`.
+
+### 1. Clone the repository
 ```bash
 git clone https://github.com/yatsenk/rat.git
 cd rat
 ```
-### 2. Сборка всего workspace
+### 2. Build the workspace
 ```bash
 cargo build --release
 ```
-### 3. Запуск сервера (Control Server)
+### 3. Run the Control Server
 ```bash
 cargo run --bin server
 ```
-### 4. Запуск клиента (Client Agent)
+### 4. Run the Client Agent
 ```bash
 cargo run --bin client
 ```
