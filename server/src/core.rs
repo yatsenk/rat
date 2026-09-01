@@ -61,7 +61,7 @@ impl Core {
             let mut stream_guard = self.stream.lock().unwrap();
             stream_guard.take()
         };
-        
+
         let sender = self.sender.clone();
         thread::spawn(move || {
             let mut buffer = [0; 512];
@@ -80,6 +80,11 @@ impl Core {
                 }
             }
         });
+    }
+
+    #[allow(unused)]
+    pub fn start_stream_screen(&self) {
+        unimplemented!()
     }
 
     pub fn start_terminal_key_events(&mut self) {
