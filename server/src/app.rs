@@ -138,7 +138,11 @@ impl<'a> App<'a> {
                     self.client_addr = addr.to_string();
 
                     let mut stream_guard = self.core.stream.lock().unwrap();
-                    *stream_guard = Some(stream);           
+                    *stream_guard = Some(stream);
+
+                    drop(stream_guard);
+
+                    self.core.start_client_reader();
                 },
                 AppEvent::Terminal(key) => {
                     match key.code {
@@ -157,8 +161,6 @@ impl<'a> App<'a> {
                     self.logged_keys.push_str(&key);
                 },
             }
-
-            self.core.start_client_reader(); 
             terminal.draw(|frame| self.render(frame))?;
         };
         Ok(())
