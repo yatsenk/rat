@@ -43,28 +43,34 @@ impl Core {
     }
 
     pub fn apply_instructions(&mut self, input: String) -> Result<(), std::io::Error> {
-        let stream = {
-            let mut stream_guard = self.stream.lock().unwrap();
-            stream_guard.take()
-        };
+        let stream_clone = Arc::clone(&self.stream);
+        thread::spawn(move || {
+            let stream = {
+                let stream_guard = stream_clone.lock().unwrap();
+                stream_guard.as_ref().and_then(|stream| stream.try_clone().ok())
+            };
 
-        if let Some(mut stream) = stream {
-            stream.write_all(input.as_bytes())?;
-            stream.flush()?;
-        }
+            let Some(mut stream) = stream else {
+                return;
+            };
+
+            stream.write_all(input.as_bytes()).unwrap();
+            stream.flush().unwrap();
+        });
         
         Ok(())
     }
 
     pub fn start_client_reader(&mut self) {
-        let stream = {  
-            let mut stream_guard = self.stream.lock().unwrap();
-            stream_guard.take()
-        };
-
+        let stream_clone = Arc::clone(&self.stream);
         let sender = self.sender.clone();
         thread::spawn(move || {
             let mut buffer = [0; 512];
+
+            let stream = {  
+                let stream_guard = stream_clone.lock().unwrap();
+                stream_guard.as_ref().and_then(|stream| stream.try_clone().ok())
+            };
 
             let Some(mut stream) = stream else {
                 return;

