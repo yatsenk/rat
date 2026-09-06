@@ -86,59 +86,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 }
 
 fn draw_first_tab(frame: &mut Frame, app: &mut App, area: Rect) {
-    let chunks = Layout::vertical([
-        Constraint::Length(4),
-        Constraint::Length(1), 
-        Constraint::Fill(13),
+    let columns = Layout::horizontal([
+        Constraint::Fill(25),
+        Constraint::Fill(75),
     ])
     .split(area);
 
-    let client_block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
-        .title(Span::styled(
-            " ▸ CLIENT ",
-            Style::default()
-                .fg(Color::Rgb(0, 200, 160))
-                .add_modifier(Modifier::BOLD),
-        ))
-        .style(Style::default().bg(Color::Rgb(10, 10, 18)));
-
-    let client_lines = if !app.client_addr.is_empty() {
-        vec![
-            Line::from(Span::raw(" ")),
-            Line::from(vec![
-                Span::styled("  client connected from   ", Style::default()
-                    .fg(Color::Rgb(50, 50, 80))),
-                Span::styled(&app.client_addr, Style::default().fg(Color::Rgb(40, 40, 65))),
-            ]),
-        ]
-    } else {
-        vec![
-            Line::from(Span::raw(" ")),
-            Line::from(vec![
-                Span::raw("  "),
-                Span::styled(
-                    "  waiting for client ...  ",
-                    Style::default().fg(Color::Rgb(40, 40, 65)),
-                ),
-            ]),
-        ]
-    };
-
-    let client = Paragraph::new(client_lines)
-        .block(client_block)
-        .style(Style::default().bg(Color::Rgb(10, 10, 18)));
-
-    frame.render_widget(client, chunks[0]);
-
-    let sep = Paragraph::new(Line::from(Span::styled(
-        "─".repeat(area.width as usize),
-        Style::default().fg(Color::Rgb(30, 30, 55)),
-    )));
-    frame.render_widget(sep, chunks[1]);
-
-    let block = Block::default()
+    let log_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
         .title(Span::styled(
@@ -154,25 +108,23 @@ fn draw_first_tab(frame: &mut Frame, app: &mut App, area: Rect) {
         .iter()
         .enumerate()
         .map(|(i, m)| {
-            let (_prefix_style, text_style) = if m.starts_with("[*]") {
-                (
-                    Style::default().fg(Color::Rgb(0, 200, 160)).add_modifier(Modifier::BOLD),
-                    Style::default().fg(Color::Rgb(180, 220, 210)),
-                )
-            } else if m.starts_with("handled") {
-                (
-                    Style::default().fg(Color::Rgb(180, 140, 255)).add_modifier(Modifier::BOLD),
-                    Style::default().fg(Color::Rgb(190, 190, 220)),
-                )
+            let text_style = if m.starts_with("[+]") {
+                Style::default().fg(Color::Rgb(0, 220, 120))
+            } else if m.starts_with("[-]") {
+                Style::default().fg(Color::Rgb(220, 80, 80))
+            } else if m.starts_with("> ") {
+                Style::default().fg(Color::Rgb(120, 170, 255))
+            } else if m.starts_with("[*]") {
+                Style::default().fg(Color::Rgb(180, 220, 210))
             } else {
-                (
-                    Style::default().fg(Color::Rgb(80, 80, 120)),
-                    Style::default().fg(Color::Rgb(140, 140, 170)),
-                )
+                Style::default().fg(Color::Rgb(115, 115, 148))
             };
 
             let line = Line::from(vec![
-                Span::styled(format!(" {:03} │ ", i + 1), Style::default().fg(Color::Rgb(40, 40, 70))),
+                Span::styled(
+                    format!(" {:03} │ ", i + 1),
+                    Style::default().fg(Color::Rgb(35, 35, 58)),
+                ),
                 Span::styled(m.as_str(), text_style),
             ]);
             ListItem::new(line)
@@ -180,10 +132,69 @@ fn draw_first_tab(frame: &mut Frame, app: &mut App, area: Rect) {
         .collect();
 
     let list = List::new(messages)
-        .block(block)
-        .highlight_style(Style::default().bg(Color::Rgb(20, 30, 40)));
+        .block(log_block)
+        .highlight_style(Style::default().bg(Color::Rgb(18, 25, 38)));
 
-    frame.render_widget(list, chunks[2]);
+    frame.render_widget(list, columns[1]);
+
+    let client_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Rgb(40, 40, 70)))
+        .title(Span::styled(
+            " ▸ CLIENT ",
+            Style::default()
+                .fg(Color::Rgb(0, 200, 160))
+                .add_modifier(Modifier::BOLD),
+        ))
+        .style(Style::default().bg(Color::Rgb(10, 10, 18)));
+
+    let client_lines = if !app.client_addr.is_empty() {
+        let (ip, port) = app.client_addr
+            .rsplit_once(':')
+            .unwrap_or((&app.client_addr, "?"));
+
+        vec![
+            Line::from(Span::raw("")),
+            Line::from(vec![
+                Span::raw("  "),
+                Span::styled("● ", Style::default().fg(Color::Rgb(0, 220, 120))),
+                Span::styled(
+                    "ONLINE",
+                    Style::default()
+                        .fg(Color::Rgb(0, 220, 120))
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled("    ip    ", Style::default().fg(Color::Rgb(50, 50, 80))),
+                Span::styled(ip, Style::default().fg(Color::Rgb(130, 175, 255))),
+            ]),
+            Line::from(vec![
+                Span::styled("    port  ", Style::default().fg(Color::Rgb(50, 50, 80))),
+                Span::styled(port, Style::default().fg(Color::Rgb(130, 175, 255))),
+            ]),
+        ]
+    } else {
+        vec![
+            Line::from(Span::raw("")),
+            Line::from(vec![
+                Span::raw("  "),
+                Span::styled("○ ", Style::default().fg(Color::Rgb(65, 65, 95))),
+                Span::styled(
+                    "OFFLINE",
+                    Style::default()
+                        .fg(Color::Rgb(65, 65, 95))
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+        ]
+    };
+
+    let client = Paragraph::new(client_lines)
+        .block(client_block)
+        .style(Style::default().bg(Color::Rgb(10, 10, 18)));
+
+    frame.render_widget(client, columns[0]);
 }
 
 fn draw_second_tab(frame: &mut Frame, app: &mut App, area: Rect) {
