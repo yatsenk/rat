@@ -58,7 +58,10 @@ where
         while let Ok(event) = app.client.app_receiver.try_recv() {
             match event {
                 ClientEvent::Connected(addr) => { app.client_addr = addr.to_string() },
-                ClientEvent::Data(_bytes) => {  },
+                ClientEvent::Data(bytes) => { 
+                    let key = std::str::from_utf8(&bytes).expect("cannot decode bytes to str");
+                    app.logged_keys.push_str(key); 
+                },
                 ClientEvent::Disconnected => { app.client_addr = String::new() },
             }
         }
