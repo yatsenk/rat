@@ -8,3 +8,8 @@ rdev = "0.5.3"
 ratatui = "0.30.2"
 crossterm = "0.29.0"
 color-eyre = "0.6.5"
+image = "0.25.10"
+tokio = { version = "1.53.1", features = ["full"] }
+bytes = "1.12.1"
+futures = "0.3.34"
+tokio-util = { version = "0.7.19", features = ["codec"] }

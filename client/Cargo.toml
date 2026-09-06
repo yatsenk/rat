@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 rdev = "0.5.3"
+repng = "0.2.2"
+scrap = "0.5.0"
+tokio = { version = "1.53.1", features = ["full"] }
