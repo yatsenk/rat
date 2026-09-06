@@ -11,7 +11,7 @@ A modular Remote Administration Tool (RAT) written in **Rust**. Built as a Cargo
 
 - **Cargo Workspace Architecture:** Clean separation into client (`client`), server (`server`).
 - **Interactive TUI:** Feature-rich terminal interface for the server built on `ratatui` and `crossterm`.
-- **Network Protocol:** Command and data transmission powered by `std::net::TcpListener` / `TcpStream`.
+- **Network Protocol:** Command and data transmission powered by `tokio::net::TcpListener` / `TcpStream`.
 - **Client Capabilities:**
   - Remote command execution.
   - Input event capture using the `rdev` library.
