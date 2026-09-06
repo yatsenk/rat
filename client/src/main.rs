@@ -12,9 +12,6 @@ async fn main() -> io::Result<()> {
     let (mut rd, mut wr) = io::split(socket);
     let (sender, mut receiver) = mpsc::channel(8);
 
-    let rt = tokio::runtime::Runtime::new()?;
-    let _guard = rt.enter();
-
     task::spawn_blocking( || {
         let callback = move |event: Event| {
             match event.name {
