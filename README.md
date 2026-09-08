@@ -41,6 +41,8 @@ cargo run --bin server
 cargo run --bin client
 ```
 
+---
+
 ## 📥 Downloads (Pre-built Binaries)
 
 You can download the latest compiled binaries for Windows directly from the [Releases page](../../releases/latest):
