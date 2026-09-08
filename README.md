@@ -7,7 +7,7 @@ A modular Remote Administration Tool (RAT) written in **Rust**. Built as a Cargo
 
 ---
 
-## RAT Demo
+## ⚙️ App Demo
 <img width="1920" height="1080" alt="rat demo" src="https://github.com/user-attachments/assets/f783e05b-414e-47e2-b102-d68ecc39b809" />
 
 ---
