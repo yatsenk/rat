@@ -5,6 +5,8 @@ A modular Remote Administration Tool (RAT) written in **Rust**. Built as a Cargo
 > **Disclaimer:** 
 > This project is created strictly for educational, demonstration, and research purposes. Using this software on devices without explicit prior authorization from the owner is illegal.
 
+<img width="1920" height="1080" alt="rat demo" src="https://github.com/user-attachments/assets/f783e05b-414e-47e2-b102-d68ecc39b809" />
+
 ---
 
 ## 🚀 Features
