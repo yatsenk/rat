@@ -3,6 +3,7 @@ use ratatui::text::{Line, Span};
 use ratatui::style::{Color, Style, Modifier};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Tabs};
 use ratatui::Frame;
+use ratatui_image::StatefulImage;
 
 use crate::app::App;
 
@@ -235,10 +236,11 @@ fn draw_second_tab(frame: &mut Frame, app: &mut App, area: Rect) {
     ];
 
     let user_screen = Paragraph::new(placeholder_lines)
-        .block(screen_block)
+        .block(screen_block.clone())
         .style(Style::default().bg(Color::Rgb(10, 10, 18)));
 
     frame.render_widget(user_screen, chunks[0]);
+    frame.render_stateful_widget(StatefulImage::new(), screen_block.inner(chunks[0]), &mut app.screenshot);
 
     let sep = Paragraph::new(Line::from(Span::styled(
         "─".repeat(area.width as usize),

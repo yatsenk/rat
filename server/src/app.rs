@@ -1,4 +1,9 @@
 use crate::server::{ClientHandle, spawn_client};
+use image::ImageReader;
+use ratatui_image::{
+    protocol::StatefulProtocol,
+    picker::Picker,
+};
 
 pub struct TabsState<'titles> {
     pub titles: Vec<&'titles str>,
@@ -32,11 +37,15 @@ pub struct App<'title> {
     pub instructions: Vec<String>,
     pub client_addr: String,
     pub logged_keys: String,
+    pub screenshot: StatefulProtocol,
     pub client: ClientHandle,
 }
 
 impl<'title> App<'title> {
     pub fn new(title: &'title str) -> Self {
+        let protocol = Picker::from_query_stdio().unwrap()
+            .new_resize_protocol(ImageReader::open("D:/фото/DSCN4215.jpg").unwrap().decode().unwrap());
+
         Self {
             title,
             input: String::new(),
@@ -46,6 +55,7 @@ impl<'title> App<'title> {
             character_index: 0,
             client_addr: String::new(),
             logged_keys: String::new(),
+            screenshot: protocol,
             client: spawn_client("127.0.0.1:7878"),
         }
     }
@@ -117,7 +127,7 @@ impl<'title> App<'title> {
     }
 
     pub fn on_tick(&mut self) { 
-
+        
     }
 
 }
