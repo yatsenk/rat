@@ -20,8 +20,13 @@ A modular Remote Administration Tool (RAT) written in **Rust**. Built as a Cargo
 - **Client Capabilities:**
   - Remote command execution.
   - Input event capture using the `rdev` library.
-    
-TODO: streaming client's display
+
+---
+
+## 🛠️ Future Enhancements
+
+- **Client screen streaming**
+
 ---
 
 ## 💻 Prerequisites & Building
