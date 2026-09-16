@@ -9,7 +9,6 @@ use image::ExtendedColorType;
 use rdev::{Event, listen};
 
 use std::io::ErrorKind::WouldBlock;
-use std::io::Cursor;
 use std::thread;
 use std::process::Command;
 use std::os::windows::process::CommandExt;
@@ -55,6 +54,8 @@ async fn main() -> io::Result<()> {
         let mut capturer = Capturer::new(display).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let (w, h) = (capturer.width(), capturer.height());
 
+        let mut rgb = Vec::with_capacity(w * h * 3);
+
         loop {
             let buffer = match capturer.frame() {
                 Ok(buffer) => buffer,
@@ -68,35 +69,26 @@ async fn main() -> io::Result<()> {
                 }
             };
 
-            let mut bitflipped = Vec::with_capacity(w * h * 4);
             let stride = buffer.len() / h;
+            rgb.clear();
 
             for y in 0..h {
-                for x in 0..w {
-                    let i = stride * y + 4 * x;
-                    bitflipped.extend_from_slice(&[
-                        buffer[i + 2],
-                        buffer[i + 1],
-                        buffer[i],
-                        255,
-                    ]);
+                let row = &buffer[y * stride..y * stride + w * 4];
+                for px in row.chunks_exact(4) {
+                    rgb.extend_from_slice(&[px[2], px[1], px[0]]);
                 }
             }
         
             let mut compressed_bytes = Vec::new();
-            let mut encoder = JpegEncoder::new(&mut compressed_bytes);
-            encoder.encode(
-                &bitflipped, 
-                w as u32, 
-                h as u32, 
-                ExtendedColorType::Rgb8
-            ).unwrap();
+            JpegEncoder::new_with_quality(&mut compressed_bytes, 75)
+                .encode(&rgb, w as u32, h as u32, ExtendedColorType::Rgb8)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
             if tx_bytes.blocking_send(compressed_bytes).is_err() {
                 break;
             }
 
-            std::thread::sleep(frame_duration);
+            thread::sleep(frame_duration);
         }
 
         Ok::<_, io::Error>(())

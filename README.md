@@ -8,7 +8,8 @@ A modular Remote Administration Tool (RAT) written in **Rust**. Built as a Cargo
 ---
 
 ## ⚙️ App Demo
-<img width="1920" height="1080" alt="rat demo" src="https://github.com/user-attachments/assets/f783e05b-414e-47e2-b102-d68ecc39b809" />
+
+<img width="1920" height="1080" alt="Windows PowerShell 2026-09-16 13-54-20" src="https://github.com/user-attachments/assets/59ad7b74-9de0-4dfa-860c-bec735ce788a" />
 
 ---
 
@@ -55,7 +56,12 @@ cargo run --bin client
 
 ## 📥 Downloads (Pre-built Binaries)
 
-You can download the latest compiled binaries for Windows directly from the [Releases page](../../releases/latest):
+You can download the latest compiled binaries from the [Releases page](../../releases/latest):
 
+### Windows (x86_64)
 [![Download Server](https://img.shields.io/badge/Download-server.exe-2496ED?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.0/server.exe)
 [![Download Client](https://img.shields.io/badge/Download-client.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.0/client.exe)
+  
+### Linux (x86_64)
+[![Download Server](https://img.shields.io/badge/Download-server.exe-2496ED?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.1/server)
+[![Download Client](https://img.shields.io/badge/Download-client.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.1/client)
