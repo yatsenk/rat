@@ -149,14 +149,14 @@ fn draw_first_tab(frame: &mut Frame, app: &mut App, area: Rect) {
         ))
         .style(Style::default().bg(Color::Rgb(10, 10, 18)));
 
-    let client_lines = if !app.addr1.is_empty() {
-        let (ip, port1) = app.addr1
+    let client_lines = if !app.client.addr1.is_empty() {
+        let (ip, port1) = app.client.addr1
             .rsplit_once(':')
-            .unwrap_or((&app.addr1, "?"));
+            .unwrap_or((&app.client.addr1, "?"));
 
-        let (_, port2) = app.addr2
+        let (_, port2) = app.client.addr2
             .rsplit_once(':')
-            .unwrap_or((&app.addr2, "?"));
+            .unwrap_or((&app.client.addr2, "?"));
 
         vec![
             Line::from(Span::raw("")),
@@ -219,7 +219,7 @@ fn draw_second_tab(frame: &mut Frame, app: &mut App, area: Rect) {
     ])
     .split(outer[0]);
 
-    let stream_active = !app.addr2.is_empty();
+    let stream_active = !app.client.addr2.is_empty();
 
     let screen_block = Block::default()
         .borders(Borders::ALL)

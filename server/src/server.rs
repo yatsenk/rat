@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use axum::{
     extract::{
         Request,
@@ -27,6 +29,8 @@ pub enum ClientEvent {
 pub struct ClientHandle {
     pub app_sender: mpsc::Sender<Vec<u8>>,   
     pub app_receiver: mpsc::Receiver<ClientEvent>, 
+    pub addr1: String,
+    pub addr2: String,
 }
 
 #[derive(Clone)]
@@ -34,7 +38,12 @@ struct AppState {
     tx: broadcast::Sender<Vec<u8>>,
 }
 
-pub async fn spawn_client(addr1: &str, addr2: &str) -> Result<ClientHandle, io::Error> {
+pub async fn spawn_client() -> Result<ClientHandle, io::Error> {
+    let tcp_listener = TcpListener::bind("127.0.0.1:7878").await?;
+    let websocket_listener = TcpListener::bind("127.0.0.1:8080").await?;
+
+    let keys = String::new();
+
     let (tx, _) = broadcast::channel::<Vec<u8>>(16);
     let state = AppState { tx };
 
@@ -46,9 +55,6 @@ pub async fn spawn_client(addr1: &str, addr2: &str) -> Result<ClientHandle, io::
     let (app_sender, mut socket_receiver) = mpsc::channel::<Vec<u8>>(32);
     let (socket_sender, app_receiver) = mpsc::channel::<ClientEvent>(32);
 
-    let tcp_listener = TcpListener::bind(addr1).await?;
-    let websocket_listener = TcpListener::bind(addr2).await?;
-
     tokio::spawn(async move {
         axum::serve(websocket_listener, app).await;
     });
@@ -56,7 +62,10 @@ pub async fn spawn_client(addr1: &str, addr2: &str) -> Result<ClientHandle, io::
     tcp_stream(tcp_listener, socket_sender, socket_receiver).await;
 
     Ok(ClientHandle { 
-        app_sender, app_receiver
+        app_sender, 
+        app_receiver,
+        addr1: String::new(),
+        addr2: String::new(),
     })
 }
 

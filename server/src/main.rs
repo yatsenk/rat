@@ -6,6 +6,7 @@ mod server;
 use app::App;
 use std::error::Error;
 use std::io;
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use std::io::Cursor;
 
@@ -30,9 +31,9 @@ use crate::server::ClientEvent;
 
 fn handle_keys(app: &mut App, event: ClientEvent) -> Result<(), Box<dyn Error>> {
     match event {
-        ClientEvent::Connected(addr) => app.addr1 = addr.to_string(),
+        ClientEvent::Connected(addr) => app.client.addr1 = addr.to_string(),
         ClientEvent::Data(bytes) => app.logged_keys.push_str(std::str::from_utf8(&bytes)?),
-        ClientEvent::Disconnected => app.addr1 = String::new(),
+        ClientEvent::Disconnected => app.client.addr1 = "".to_string(),
     }
     Ok(())
 }
