@@ -41,30 +41,30 @@ cargo run --bin client
 
 ## Connecting from Other Devices (via ngrok)
 
-Since the application is configured for localhost by default, you can use [ngrok](https://ngrok.com/) to expose your local server to the internet for testing or sharing with others without needing a public static IP address.
+You should use [ngrok](https://ngrok.com/) to expose your local server to the internet for testing or sharing with others without needing a public static IP address. Since the architecture uses two separate connections (one for raw TCP traffic and one for WebSockets), you will need to set up two parallel ngrok tunnels.
 
 ### Step-by-Step Guide:
 
-1. **Create a tunnel using ngrok:**
-   * For HTTP / WebSocket connections:
+1. **Create two tunnels using ngrok:**
+   * Open two separate terminal windows and run a tunnel for each port:
+   * **For WebSocket connections (HTTP/WS tunnel):**
      ```bash
      ngrok http 8080
      ```
-   * For raw TCP traffic:
+   * **For raw TCP traffic:**
      ```bash
      ngrok tcp 7878
      ```
-2. **Copy the address and port from the ngrok terminal:**
-   * Example for HTTP/WS: `https://xxxx-xx-xx.ngrok-free.app` (or `tcp://0.tcp.eu.ngrok.io:12345` for TCP).
-3. **Update the client configuration in the code:**
-   * Open the file where the server connection address is defined (`client/src/main.rs`).
-   * Replace the local address (like `127.0.0.1:8080`) with the data provided by ngrok (for HTTP/WS you can use `wss://xxxx-xx-xx.ngrok-free.app`, for TCP use the host and port accordingly).
-4. **Compile and build the binaries:**
-   ```bash
-   cargo build --release
-   ```
-5. **Run the binaries**
-   * Run compiled binaries in your ./target/release directory.
+
+2. **Copy the addresses and ports from the ngrok terminals:**
+   * For WebSocket, copy the generated public URL (e.g., `https://xxxx-xx-xx.ngrok-free.app` — the client will automatically handle secure `wss://` conversion or you can provide it directly).
+   * For TCP, copy the host and port from the TCP forwarding line (e.g., `0.tcp.eu.ngrok.io:12345`).
+
+3. **Run the client application:**
+   * Start your compiled client binary (or run it via `cargo run --bin client`).
+   * When prompted by the application, enter the two addresses provided by ngrok:
+     1. **TCP address/port** (e.g., `0.tcp.eu.ngrok.io:12345`)
+     2. **WebSocket URL** (e.g., `wss://xxxx-xx-xx.ngrok-free.app/ws`)
 
 ## Downloads (Pre-built Binaries)
 
