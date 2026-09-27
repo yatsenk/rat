@@ -57,7 +57,7 @@ You should use [ngrok](https://ngrok.com/) to expose your local server to the in
      ```
 
 2. **Copy the addresses and ports from the ngrok terminals:**
-   * For WebSocket, copy the generated public URL (e.g., `https://xxxx-xx-xx.ngrok-free.app` — the client will automatically handle secure `wss://` conversion or you can provide it directly).
+   * For WebSocket, copy the generated public URL (e.g., `https://xxxx-xx-xx.ngrok-free.app`, IMPORTANT: replace `https` with `wss` and add `/ws` at the end).
    * For TCP, copy the host and port from the TCP forwarding line (e.g., `0.tcp.eu.ngrok.io:12345`).
 
 3. **Run the client application:**
