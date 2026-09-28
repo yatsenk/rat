@@ -71,12 +71,12 @@ You should use [ngrok](https://ngrok.com/) to expose your local server to the in
 You can download the latest compiled binaries from the [Releases page](../../releases/latest):
 
 ### Windows (x86_64)
-[![Download Server](https://img.shields.io/badge/Download-server.exe-2496ED?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.0/server.exe)
-[![Download Client](https://img.shields.io/badge/Download-client.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.0/client.exe)
+[![Download Server](https://img.shields.io/badge/Download-server.exe-2496ED?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/0.2.1/server-x86_64-pc-windows-msvc.exe)
+[![Download Client](https://img.shields.io/badge/Download-client.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/0.2.1/client-x86_64-pc-windows-msvc.exe)
   
 ### Linux (x86_64)
-[![Download Server](https://img.shields.io/badge/Download-server.exe-2496ED?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.1/server)
-[![Download Client](https://img.shields.io/badge/Download-client.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/v0.1.1/client)
+[![Download Server](https://img.shields.io/badge/Download-server.exe-2496ED?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/0.2.1/server-x86_64-unknown-linux-gnu)
+[![Download Client](https://img.shields.io/badge/Download-client.exe-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/yatsenk/rat/releases/download/0.2.1/client-x86_64-unknown-linux-gnu)
 
 ## Contributing
 Contributors or Pull Requests are Welcome!!!
